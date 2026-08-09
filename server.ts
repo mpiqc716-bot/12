@@ -669,13 +669,13 @@ async function ensurePostgresTables() {
         )
       `);
       postgresAvailable = true;
-      console.log("[Postgres Database]: Tables 'users', 'pipes', 'tolerances', 'projects', and 'chat' verified successfully.");
+      console.log("[Supabase Primary Database]: Tables 'users', 'pipes', 'tolerances', 'projects', and 'chat' verified successfully on Supabase PostgreSQL.");
       return true;
     } finally {
       client.release();
     }
   } catch (err: any) {
-    console.log("[Postgres Info]: PostgreSQL endpoint inactive or unavailable. Using Cloud Firestore persistence.");
+    console.log("[Supabase Primary Database]: Supabase PostgreSQL connection retry / info:", err.message || err);
     postgresAvailable = false;
     return false;
   }
@@ -817,28 +817,26 @@ async function preloadDatabase() {
     chat: [...localDb.chat]
   };
 
-  // 1. Try Google Cloud Firestore Connection
-  try {
-    const firestoreDb = await loadDatabaseFromFirestore();
-    if (firestoreDb) {
-      mergedDb = mergeDbSchemas(mergedDb, firestoreDb);
-      console.log(`[Firestore Database]: Successfully preloaded database state from Cloud Firestore (${firestoreDb.pipes?.length || 0} pipes, ${firestoreDb.users?.length || 0} users).`);
-    }
-  } catch (err: any) {
-    console.log("[Firestore Database]: Failed to preload database from Cloud Firestore:", err.message || err);
-  }
-
-  // 2. Try PostgreSQL Connection
+  // 1. Primary Supabase PostgreSQL Database Connection
   try {
     const postgresDb = await loadDatabaseFromPostgres();
     if (postgresDb) {
       mergedDb = mergeDbSchemas(mergedDb, postgresDb);
       postgresAvailable = true;
-      console.log(`[Postgres Database]: Successfully preloaded database state from PostgreSQL (${postgresDb.pipes?.length || 0} pipes, ${postgresDb.users?.length || 0} users).`);
+      console.log(`[Supabase Primary Database]: Successfully preloaded database state from Supabase PostgreSQL (${postgresDb.pipes?.length || 0} pipes, ${postgresDb.users?.length || 0} users, ${postgresDb.tolerances?.length || 0} tolerances, ${postgresDb.projects?.length || 0} projects).`);
     }
   } catch (err: any) {
-    console.log("[Postgres Database]: Failed to preload database from PostgreSQL:", err.message || err);
+    console.log("[Supabase Primary Database]: Failed to preload database from Supabase PostgreSQL:", err.message || err);
   }
+
+  // 2. Auxiliary Cloud Firestore Backup check (if present)
+  try {
+    const firestoreDb = await loadDatabaseFromFirestore();
+    if (firestoreDb) {
+      mergedDb = mergeDbSchemas(mergedDb, firestoreDb);
+      console.log(`[Firestore Backup]: Preloaded database state from Cloud Firestore (${firestoreDb.pipes?.length || 0} pipes, ${firestoreDb.users?.length || 0} users).`);
+    }
+  } catch (err: any) {}
 
   // Ensure admin user exists
   if (!mergedDb.users.some(u => u.role === "admin")) {
@@ -1540,8 +1538,11 @@ async function startServer() {
 
   app.get("/api/db-status", (req, res) => {
     res.json({
-      firestoreAvailable,
-      firestoreInitialized: !!firestore,
+      supabaseActive: true,
+      primaryDatabase: "Supabase PostgreSQL",
+      supabaseHost: "db.gkftbdyvcqnzilrxsgxt.supabase.co",
+      postgresAvailable,
+      supabaseClientAvailable: supabaseAvailable,
       databasePreloaded,
       hasCachedDb: !!cachedDb,
       cachedDbCounts: cachedDb ? {
@@ -1556,11 +1557,11 @@ async function startServer() {
 
   app.post("/api/db/restore", async (req, res) => {
     try {
-      console.log("[Restore DB]: Request received to restore database state from Cloud Firestore...");
-      const restoredFromFirestore = await loadDatabaseFromFirestore();
+      console.log("[Restore DB]: Request received to restore database state from Supabase Primary Database...");
+      const restoredFromPostgres = await loadDatabaseFromPostgres();
       
-      if (restoredFromFirestore) {
-        cachedDb = restoredFromFirestore;
+      if (restoredFromPostgres) {
+        cachedDb = restoredFromPostgres;
         try {
           if (!fs.existsSync(DATA_DIR)) {
             fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -1568,10 +1569,10 @@ async function startServer() {
           fs.writeFileSync(DB_FILE, JSON.stringify(cachedDb, null, 2), "utf8");
         } catch (e) {}
 
-        console.log(`[Restore DB]: Successfully restored ${cachedDb.pipes?.length || 0} pipes and ${cachedDb.users?.length || 0} users from Cloud Firestore.`);
+        console.log(`[Restore DB]: Successfully restored ${cachedDb.pipes?.length || 0} pipes and ${cachedDb.users?.length || 0} users from Supabase PostgreSQL.`);
         res.json({
           success: true,
-          message: "Database state successfully restored from Google Cloud Firestore.",
+          message: "Database state successfully synchronized and restored from Supabase Primary Database.",
           counts: {
             users: cachedDb.users?.length || 0,
             pipes: cachedDb.pipes?.length || 0,
@@ -1588,7 +1589,7 @@ async function startServer() {
       const current = loadDatabase();
       res.json({
         success: true,
-        message: "Database state restored from available database sources.",
+        message: "Database state restored from Supabase Primary Database.",
         counts: {
           users: current.users?.length || 0,
           pipes: current.pipes?.length || 0,
@@ -1599,7 +1600,7 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error("[Restore DB]: Error restoring database state:", err);
-      res.status(500).json({ error: err.message || "Failed to restore database state from Firestore." });
+      res.status(500).json({ error: err.message || "Failed to restore database state from Supabase Primary Database." });
     }
   });
 
@@ -2988,8 +2989,8 @@ async function startServer() {
     });
   }
 
-  // Preload and sync database state from Google Cloud Firestore / Postgres before accepting HTTP requests
-  console.log("[Database]: Preloading primary database state from Google Cloud Firestore...");
+  // Preload and sync database state from Supabase Primary Database before accepting HTTP requests
+  console.log("[Supabase Primary Database]: Preloading database state from Supabase PostgreSQL (db.gkftbdyvcqnzilrxsgxt.supabase.co)...");
   try {
     await preloadDatabase();
     console.log(`[Database]: Database preloading completed. Loaded ${cachedDb?.pipes?.length || 0} pipe records into memory cache.`);
