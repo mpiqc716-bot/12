@@ -1,0 +1,10 @@
+{
+  "name": "Remix Remix Remix: Remix: Pipe Quality Tracker",
+  "description": "Mobile-friendly multi-user tracker for pipe production quality control steps with barcode simulation, image capture, and admin controls.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

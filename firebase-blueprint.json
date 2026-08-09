@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "An operator or administrator accessing the Pipe Quality Tracker application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique user identification string." },
+        "username": { "type": "string", "description": "The human-readable username used to log in." },
+        "role": { "type": "string", "enum": ["operator", "admin"], "description": "The access level of the user." },
+        "password": { "type": "string", "description": "The encrypted or plaintext password credential." }
+      },
+      "required": ["id", "username", "role"]
+    },
+    "PipeRecord": {
+      "title": "Pipe Record",
+      "description": "The full design specifications, production steps, QA validation checks, and ejection parameters of a pipe.",
+      "type": "object",
+      "properties": {
+        "pipeId": { "type": "string", "description": "The unique printed barcode identifier." },
+        "header": { "type": "object", "description": "General manufacturing specifications header." },
+        "operatorId": { "type": "string", "description": "The user ID of the initiating operator." },
+        "operatorUsername": { "type": "string", "description": "The user name of the initiating operator." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating document creation." },
+        "lastUpdatedAt": { "type": "string", "format": "date-time", "description": "Timestamp indicating last modifications." },
+        "steps": { "type": "object", "description": "A dynamic dictionary keyed by production step numbers (1-8)." },
+        "isDispatched": { "type": "boolean", "description": "Whether the pipe has been dispatched for delivery." },
+        "dispatchedAt": { "type": "string", "format": "date-time", "description": "Timestamp of dispatch." },
+        "dispatchedBy": { "type": "string", "description": "Username of the director who dispatched the pipe." }
+      },
+      "required": ["pipeId", "header", "operatorId", "operatorUsername", "createdAt", "lastUpdatedAt", "steps"]
+    },
+    "ToleranceConfig": {
+      "title": "Tolerance Configuration",
+      "description": "Dimensional threshold limits for step validations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique tolerance record ID." },
+        "project": { "type": "string", "description": "Target project code." },
+        "specification": { "type": "string", "description": "Target setting reference." }
+      },
+      "required": ["id", "project", "specification"]
+    },
+    "ProjectConfig": {
+      "title": "Project Configuration",
+      "description": "Pre-defined active production codes and references lists.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique registration ID." },
+        "projectCode": { "type": "string", "description": "Manufacturing project code." },
+        "settingReferences": { "type": "array"}
+      },
+      "required": ["id", "projectCode", "settingReferences"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Communication logs entered on the operator shift team workspace bulletin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique chat message sequence identifier." },
+        "username": { "type": "string", "description": "The sender's username." },
+        "role": { "type": "string", "description": "The sender's privilege level." },
+        "text": { "type": "string", "description": "The text message content." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Creation timestamp." }
+      },
+      "required": ["id", "username", "role", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Dynamic workspace directories keeping verified operators."
+    },
+    "/pipes/{pipeId}": {
+      "schema": "PipeRecord",
+      "description": "The primary GRP/GRE pipe manufacturing record index."
+    },
+    "/tolerances/{toleranceId}": {
+      "schema": "ToleranceConfig",
+      "description": "Target threshold tolerance rules for active manufacturing series."
+    },
+    "/projects/{projectId}": {
+      "schema": "ProjectConfig",
+      "description": "Active work orders."
+    },
+    "/chat/{chatId}": {
+      "schema": "ChatMessage",
+      "description": "The real-time collaboration thread."
+    }
+  }
+}

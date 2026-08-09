@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    // Check if the caller is an Admin
+    function isAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Entity helper validations
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'username', 'role']) &&
+        data.keys().size() >= 3 &&
+        data.id is string && data.id.size() <= 128 &&
+        data.username is string && data.username.size() >= 2 && data.username.size() <= 64 &&
+        data.role is string && (data.role == 'admin' || data.role == 'operator');
+    }
+    
+    function isValidPipe(data) {
+      return data.keys().hasAll(['pipeId', 'header', 'operatorId', 'operatorUsername', 'createdAt', 'lastUpdatedAt', 'steps']) &&
+        data.pipeId is string && data.pipeId.size() <= 128 &&
+        data.operatorId is string && data.operatorId.size() <= 128 &&
+        data.operatorUsername is string && data.operatorUsername.size() <= 64;
+    }
+
+    function isValidTolerance(data) {
+      return data.keys().hasAll(['id', 'project', 'specification']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.project is string && data.project.size() <= 128 &&
+        data.specification is string && data.specification.size() <= 128;
+    }
+
+    function isValidProject(data) {
+      return data.keys().hasAll(['id', 'projectCode', 'settingReferences']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.projectCode is string && data.projectCode.size() <= 128 &&
+        data.settingReferences is list;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['id', 'username', 'role', 'text', 'timestamp']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.username is string && data.username.size() <= 128 &&
+        data.role is string && (data.role == 'admin' || data.role == 'operator') &&
+        data.text is string && data.text.size() <= 2000;
+    }
+    
+    // Match definitions
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (isAdmin() || request.auth.uid == userId);
+      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (isAdmin() || (request.auth.uid == userId && incoming().role == existing().role));
+      allow delete: if isSignedIn() && isValidId(userId) && isAdmin();
+    }
+    
+    match /pipes/{pipeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(pipeId) && isValidPipe(incoming());
+      allow update: if isSignedIn() && isValidId(pipeId) && isValidPipe(incoming()) && (
+        isAdmin() || 
+        (existing().operatorId == request.auth.uid && !existing().get('isDispatched', false))
+      );
+      allow delete: if isSignedIn() && isValidId(pipeId) && (isAdmin() || existing().operatorId == request.auth.uid);
+    }
+
+    match /tolerances/{toleranceId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(toleranceId) && isAdmin() && (request.method == 'delete' || isValidTolerance(incoming()));
+    }
+
+    match /projects/{projectId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(projectId) && isAdmin() && (request.method == 'delete' || isValidProject(incoming()));
+    }
+
+    match /chat/{chatId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(chatId) && isValidChatMessage(incoming()) && incoming().username == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username;
+      allow update, delete: if isSignedIn() && isValidId(chatId) && isAdmin();
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# Redirects configuration for client-side router fallback
+# This file handles routing and dynamic proxies.
+
+/api/*  https://pipe-quality-tracker-207023987327.europe-west2.run.app/api/:splat  200!
+/*      /index.html                                                                 200
