@@ -584,8 +584,8 @@ async function saveDatabaseToFirestore(data: DbSchema) {
 }
 
 // Initialize Supabase Client safely
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://oluxqqderltynznbmfcj.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_RV08Dxewe6h3cWPXVekNTg_Q90Tk7RO";
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://gkftbdyvcqnzilrxsgxt.supabase.co";
+const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_awvvSAgd1lZvrtqnORzl0w_ggjrQ3rz";
 
 let supabase: any = null;
 try {
