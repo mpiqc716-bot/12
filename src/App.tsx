@@ -978,7 +978,9 @@ export default function App() {
             <span className="text-gray-400 font-bold block uppercase text-[10px] tracking-wider mb-0.5">Pipe Destination</span>
             <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded border mt-0.5 uppercase tracking-tight ${
               ((pipe.steps[8]?.fields as any)?.pipeDestination || "PRODUCT CONFORM - DP-COMMERCIAL").includes("NON-CONFORM")
-                ? "bg-amber-50 text-red-700 border-red-200"
+                ? "bg-red-50 text-red-700 border-red-200"
+                : ((pipe.steps[8]?.fields as any)?.pipeDestination || "").includes("ON HOLD") || ((pipe.steps[8]?.fields as any)?.pipeDestination || "").includes("REWORK")
+                ? "bg-amber-100 text-amber-900 border-amber-300"
                 : "bg-emerald-50 text-emerald-850 border-emerald-150"
             }`}>
               {(pipe.steps[8]?.fields as any)?.pipeDestination || "PRODUCT CONFORM - DP-COMMERCIAL"}
