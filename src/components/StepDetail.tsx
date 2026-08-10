@@ -3,7 +3,10 @@ import {
   ArrowLeft, 
   ArrowRight, 
   CheckCircle, 
+  CheckCircle2,
   AlertTriangle, 
+  AlertCircle,
+  ShieldCheck,
   Info, 
   FileText, 
   Check, 
@@ -467,7 +470,7 @@ function StepDetail({
       case 3:
         return { resinType: "Epoxy", resinBatch: "", layersCount: 16, windingAngle: 54.7, hoopType: "", hoopBatch: "" };
       case 4:
-        return { cureTemp: "140°C", cureTime: "120 mins", testBlock: "Not applicable", tgValue: "" };
+        return { cureTemp: "140°C", cureTime: "120 mins", testBlock: "Not applicable", tgValue: "", barcolTest: "Not applicable", barcolValue: "", barcolMinReq: "40 HBa", barcolResult: "Pass - Compliant (Fully Cured)", barcolDeviceSerial: "", barcolReadings: "" };
       case 5:
         return {};
       case 6:
@@ -679,9 +682,16 @@ function StepDetail({
           </div>
         );
       case 4:
+        const isBarcolApplicable = fields.barcolTest === "Applicable";
+        const numericBarcol = parseFloat(fields.barcolValue || "");
+        const minReqBarcol = parseFloat(fields.barcolMinReq || "40") || 40;
+        const isBarcolLow = !isNaN(numericBarcol) && numericBarcol < minReqBarcol;
+        const isBarcolPass = !isNaN(numericBarcol) && numericBarcol >= minReqBarcol;
+
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-5">
+            {/* Main Cure Parameters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Cure Temperature (°C)</label>
                 <input
@@ -692,6 +702,7 @@ function StepDetail({
                   className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl text-sm p-2.5 focus:outline-none transition"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Cure Time (mins)</label>
                 <input
@@ -702,33 +713,162 @@ function StepDetail({
                   className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl text-sm p-2.5 focus:outline-none transition"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Degree of Cure Test Block</label>
                 <select
                   value={fields.testBlock || "Not applicable"}
                   onChange={(e) => handleFieldChange("testBlock", e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl text-sm p-2.5 focus:outline-none transition cursor-pointer"
+                  className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl text-sm p-2.5 focus:outline-none transition cursor-pointer font-medium text-gray-800"
                 >
                   <option value="Applicable">Applicable</option>
                   <option value="Not applicable">Not applicable</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Barcol Hardness Test
+                </label>
+                <select
+                  value={fields.barcolTest || "Not applicable"}
+                  onChange={(e) => handleFieldChange("barcolTest", e.target.value)}
+                  className={`w-full border rounded-xl text-sm p-2.5 focus:outline-none transition cursor-pointer font-bold ${
+                    isBarcolApplicable 
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-900 focus:border-emerald-500" 
+                      : "bg-gray-50 border-gray-200 text-gray-700 focus:border-blue-500"
+                  }`}
+                >
+                  <option value="Not applicable">Not applicable</option>
+                  <option value="Applicable">Applicable</option>
+                </select>
+              </div>
             </div>
 
+            {/* Test Block Tg Value field if Applicable */}
             {fields.testBlock === "Applicable" && (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1.5">
+                <label className="block text-xs font-bold text-slate-800">
+                  Degree of Cure - Tg Value (°C)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Glass Transition Temp: 115°C"
+                  value={(fields as any).tgValue || ""}
+                  onChange={(e) => handleFieldChange("tgValue", e.target.value)}
+                  className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-lg text-sm p-2.5 focus:outline-none transition font-sans placeholder-gray-400"
+                />
+              </div>
+            )}
+
+            {/* Barcol Hardness Test Result Section (If Applicable) */}
+            {isBarcolApplicable && (
+              <div className="bg-emerald-50/60 border border-emerald-200/80 p-4 rounded-xl space-y-4 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                        Barcol Hardness Test Protocol & Result (ASTM D2583 / BS 2782)
+                      </h4>
+                      <p className="text-[11px] text-emerald-800 font-medium">
+                        Enter impressor readings, device serial number, and evaluate cure status.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    ASTM D2583
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-950 mb-1">
+                      Barcol Hardness Result (HBa)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 42 HBa"
+                      value={fields.barcolValue || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleFieldChange("barcolValue", val);
+                        handleFieldChange("testResult", val);
+                      }}
+                      className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-lg text-sm p-2.5 font-bold text-gray-900 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-950 mb-1">
+                      Min Requirement (HBa)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 40 HBa"
+                      value={fields.barcolMinReq || "40 HBa"}
+                      onChange={(e) => handleFieldChange("barcolMinReq", e.target.value)}
+                      className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-lg text-sm p-2.5 font-medium text-gray-800 focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-950 mb-1">
+                      Evaluation Status
+                    </label>
+                    <select
+                      value={fields.barcolResult || "Pass - Compliant (Fully Cured)"}
+                      onChange={(e) => handleFieldChange("barcolResult", e.target.value)}
+                      className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-lg text-sm p-2.5 font-bold text-gray-900 focus:outline-none transition cursor-pointer"
+                    >
+                      <option value="Pass - Compliant (Fully Cured)">Pass - Compliant (Fully Cured)</option>
+                      <option value="Fail - Non-Conform (Under-Cured)">Fail - Non-Conform (Under-Cured)</option>
+                      <option value="Conditional - Re-bake Required">Conditional - Re-bake Required</option>
+                      <option value="Under Review">Under Review</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-950 mb-1">
+                      Impressor Device Serial N°
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. IMPRESSOR-BAR-902"
+                      value={fields.barcolDeviceSerial || ""}
+                      onChange={(e) => handleFieldChange("barcolDeviceSerial", e.target.value)}
+                      className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-lg text-sm p-2.5 text-gray-800 focus:outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                {/* Individual Readings / Test Notes */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Tg Value
+                  <label className="block text-xs font-semibold text-emerald-950 mb-1">
+                    Individual Impressor Readings & Test Notes
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="e.g. Glass Transition Temp: 115°C"
-                    value={(fields as any).tgValue || ""}
-                    onChange={(e) => handleFieldChange("tgValue", e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl text-sm p-2.5 focus:outline-none transition font-sans placeholder-gray-400"
+                    placeholder="e.g. Readings: 41, 43, 42, 44, 42. Average Barcol Hardness: 42.4 HBa (Passes minimum requirement)."
+                    value={fields.barcolReadings || ""}
+                    onChange={(e) => handleFieldChange("barcolReadings", e.target.value)}
+                    className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-lg text-sm p-2.5 focus:outline-none transition font-sans text-gray-800 placeholder-emerald-700/50"
                   />
                 </div>
+
+                {/* Auto Warning / Confirmation Box */}
+                {isBarcolLow && (
+                  <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-2.5 rounded-lg flex items-center gap-2 font-medium">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Warning: Measured hardness ({numericBarcol} HBa) is below the required minimum ({minReqBarcol} HBa). Inspect resin cross-linking or re-bake pipe.</span>
+                  </div>
+                )}
+                {isBarcolPass && (
+                  <div className="bg-emerald-100/80 border border-emerald-300 text-emerald-900 text-xs p-2.5 rounded-lg flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Passed: Measured hardness ({numericBarcol} HBa) meets or exceeds minimum requirement ({minReqBarcol} HBa).</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
