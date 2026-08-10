@@ -460,6 +460,49 @@ function StepDetail({
     }
   }, [fields, stepNo, tolerances, allPipes, pipeId]);
 
+  // Helper to check if any step (1 to 8) has a failed quality observation
+  const checkPipeHasFailedQualityObservation = (): { hasFail: boolean; failedSteps: number[] } => {
+    const currentPipe = allPipes?.find((p) => p.pipeId === pipeId);
+    const failedStepsSet = new Set<number>();
+
+    for (let s = 1; s <= 8; s++) {
+      if (s === stepNo) {
+        // Current step state in StepDetail
+        const isCurrNonConform = !!isNonConform;
+        const currQcFail = qualityChecks.some((qc) => qc.status === "Fail");
+        if (isCurrNonConform || currQcFail) {
+          failedStepsSet.add(s);
+        }
+      } else {
+        // Saved step state from pipe record
+        const stepData = currentPipe?.steps?.[s] || (currentPipe?.steps as any)?.[String(s)];
+        if (stepData) {
+          const isStepNonConform = !!stepData.isNonConform;
+          const stepQcFail = stepData.qualityChecks?.some((qc) => qc.status === "Fail");
+          if (isStepNonConform || stepQcFail) {
+            failedStepsSet.add(s);
+          }
+        }
+      }
+    }
+
+    const failedSteps = Array.from(failedStepsSet).sort((a, b) => a - b);
+    return { hasFail: failedSteps.length > 0, failedSteps };
+  };
+
+  const { hasFail: hasFailedQualityObservation, failedSteps } = checkPipeHasFailedQualityObservation();
+
+  // Enforce automatic destination locking to "PRODUCT ON HOLD - DP-REWORK" when failed quality observations exist
+  useEffect(() => {
+    if (stepNo === 8) {
+      if (hasFailedQualityObservation) {
+        if (fields.pipeDestination !== "PRODUCT ON HOLD - DP-REWORK") {
+          handleFieldChange("pipeDestination", "PRODUCT ON HOLD - DP-REWORK");
+        }
+      }
+    }
+  }, [stepNo, isNonConform, qualityChecks, allPipes, pipeId, hasFailedQualityObservation, fields.pipeDestination]);
+
   // Pre-load default fields when starting fresh
   const getDefaultFieldsForStep = (step: number) => {
     switch (step) {
@@ -469,8 +512,12 @@ function StepDetail({
         return { resinType: "Epoxy", resinBatch: "", cGlassType: "", cGlassBatch: "", wovenType: "", wovenBatch: "" };
       case 3:
         return { resinType: "Epoxy", resinBatch: "", layersCount: 16, windingAngle: 54.7, hoopType: "", hoopBatch: "" };
-      case 4:
-        return { cureTemp: "140°C", cureTime: "120 mins", testBlock: "Not applicable", tgValue: "", barcolTest: "Not applicable", barcolValue: "", barcolMinReq: "40 HBa", barcolResult: "Pass - Compliant (Fully Cured)", barcolDeviceSerial: "", barcolReadings: "" };
+      case 4: {
+        const activeTol = getActiveTolerance();
+        const adminBarcolMinVal = activeTol?.barcolMinReq?.min ?? (typeof activeTol?.barcolMinReq === "number" ? activeTol?.barcolMinReq : "40");
+        const barcolMinStr = `${adminBarcolMinVal} HBa`;
+        return { cureTemp: "140°C", cureTime: "120 mins", testBlock: "Not applicable", tgValue: "", barcolTest: "Not applicable", barcolValue: "", barcolMinReq: barcolMinStr, barcolResult: "Pass - Compliant (Fully Cured)", barcolDeviceSerial: "", barcolReadings: "" };
+      }
       case 5:
         return {};
       case 6:
@@ -490,7 +537,8 @@ function StepDetail({
         };
       case 7:
         return { o2b: 119.0, ba: 119.5, bb: 120.0, bc: 120.0, bd: 120.0, be: 30.0, bf: 15.0, bg: 10.0 };
-      case 8:
+      case 8: {
+        const { hasFail } = checkPipeHasFailedQualityObservation();
         return { 
           inspectorName: "",
           hydrostaticTest: "not_applicable",
@@ -499,8 +547,9 @@ function StepDetail({
           vernierCaliperSerial: "",
           crcometerSerial: "",
           pipeWeight: undefined,
-          pipeDestination: "PRODUCT CONFORM - DP-COMMERCIAL"
+          pipeDestination: hasFail ? "PRODUCT ON HOLD - DP-REWORK" : "PRODUCT CONFORM - DP-COMMERCIAL"
         };
+      }
       default:
         return {};
     }
@@ -681,10 +730,13 @@ function StepDetail({
             </div>
           </div>
         );
-      case 4:
+      case 4: {
         const isBarcolApplicable = fields.barcolTest === "Applicable";
+        const activeTolS4 = getActiveTolerance();
+        const adminBarcolMinVal = activeTolS4?.barcolMinReq?.min ?? (typeof activeTolS4?.barcolMinReq === "number" ? activeTolS4?.barcolMinReq : "40");
+        const adminBarcolMinStr = String(adminBarcolMinVal !== "ND" && adminBarcolMinVal !== undefined && adminBarcolMinVal !== null ? adminBarcolMinVal : "40");
+        const minReqBarcol = parseFloat(fields.barcolMinReq || adminBarcolMinStr) || parseFloat(adminBarcolMinStr) || 40;
         const numericBarcol = parseFloat(fields.barcolValue || "");
-        const minReqBarcol = parseFloat(fields.barcolMinReq || "40") || 40;
         const isBarcolLow = !isNaN(numericBarcol) && numericBarcol < minReqBarcol;
         const isBarcolPass = !isNaN(numericBarcol) && numericBarcol >= minReqBarcol;
 
@@ -800,15 +852,19 @@ function StepDetail({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-emerald-950 mb-1">
-                      Min Requirement (HBa)
+                    <label className="block text-xs font-semibold text-emerald-950 mb-1 flex items-center justify-between">
+                      <span>Min Requirement (HBa)</span>
+                      <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1" title="Determined by Admin in Project Specification">
+                        <ShieldCheck className="w-3 h-3 text-amber-600" />
+                        Admin Spec
+                      </span>
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 40 HBa"
-                      value={fields.barcolMinReq || "40 HBa"}
-                      onChange={(e) => handleFieldChange("barcolMinReq", e.target.value)}
-                      className="w-full bg-white border border-emerald-300 focus:border-emerald-600 rounded-lg text-sm p-2.5 font-medium text-gray-800 focus:outline-none transition"
+                      readOnly
+                      value={`${minReqBarcol} HBa`}
+                      className="w-full bg-amber-50/80 border border-amber-300 rounded-lg text-sm p-2.5 font-extrabold text-amber-950 focus:outline-none cursor-not-allowed shadow-2xs"
+                      title="Min Requirement (HBa) is determined by Admin in Specification settings"
                     />
                   </div>
 
@@ -873,6 +929,7 @@ function StepDetail({
             )}
           </div>
         );
+      }
       case 5:
         return (
           <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-stone-600 text-xs">
@@ -1139,21 +1196,53 @@ function StepDetail({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5 uppercase tracking-wide">
-                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                  Pipe Destination Selection <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between uppercase tracking-wide">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${hasFailedQualityObservation ? "bg-amber-500 animate-pulse" : "bg-blue-600"}`}></span>
+                    Pipe Destination Selection <span className="text-red-500">*</span>
+                  </div>
+                  {hasFailedQualityObservation && (
+                    <span className="text-[9px] font-extrabold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                      Auto-Locked On Hold
+                    </span>
+                  )}
                 </label>
                 <select
                   id="select-pipe-destination"
-                  value={fields.pipeDestination || "PRODUCT CONFORM - DP-COMMERCIAL"}
+                  disabled={hasFailedQualityObservation}
+                  value={hasFailedQualityObservation ? "PRODUCT ON HOLD - DP-REWORK" : (fields.pipeDestination || "PRODUCT CONFORM - DP-COMMERCIAL")}
                   onChange={(e) => handleFieldChange("pipeDestination", e.target.value)}
-                  className="w-full bg-blue-50/10 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl text-sm p-2.5 focus:outline-none transition font-extrabold text-blue-900"
+                  className={`w-full border rounded-xl text-sm p-2.5 focus:outline-none transition font-extrabold ${
+                    hasFailedQualityObservation
+                      ? "bg-amber-50/90 border-amber-300 text-amber-950 cursor-not-allowed shadow-2xs"
+                      : "bg-blue-50/10 border-gray-200 focus:border-blue-500 focus:bg-white text-blue-900"
+                  }`}
                 >
                   <option value="PRODUCT CONFORM - DP-COMMERCIAL">PRODUCT CONFORM - DP-COMMERCIAL</option>
-                  <option value="PRODUCT CONFORM -  RPS-COMMERCIAL">PRODUCT CONFORM -  RPS-COMMERCIAL</option>
+                  <option value="PRODUCT CONFORM - RPS-COMMERCIAL">PRODUCT CONFORM - RPS-COMMERCIAL</option>
+                  <option value="PRODUCT ON HOLD - DP-REWORK">PRODUCT ON HOLD - DP-REWORK</option>
                   <option value="PRODUCT NON-CONFORM - RPS-COMMERCIAL">PRODUCT NON-CONFORM - RPS-COMMERCIAL</option>
                   <option value="PRODUCT NON-CONFORM - REJECTED">PRODUCT NON-CONFORM - REJECTED</option>
                 </select>
+
+                {hasFailedQualityObservation && (
+                  <div className="mt-2.5 p-3 bg-amber-50/90 border border-amber-300 rounded-xl text-xs text-amber-950 font-medium flex items-start gap-2.5 animate-fade-in shadow-2xs">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="font-extrabold uppercase text-[10px] tracking-wide text-amber-950 flex items-center gap-1.5">
+                        Automatic Storage Assignment: PRODUCT ON HOLD - DP-REWORK
+                      </div>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        This pipe contains unresolved failed quality observation(s) in <strong>Step(s) {failedSteps.join(", ")}</strong>. 
+                        It has been automatically directed to <span className="font-black underline bg-amber-200/80 px-1 py-0.5 rounded text-amber-950">PRODUCT ON HOLD - DP-REWORK</span> storage.
+                      </p>
+                      <p className="text-[10px] text-amber-800 italic pt-0.5 font-sans border-t border-amber-200/60 mt-1">
+                        Lock will automatically release once all quality observations in Step(s) {failedSteps.join(", ")} are updated to "Pass".
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
