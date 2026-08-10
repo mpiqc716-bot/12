@@ -967,7 +967,7 @@ function TrackingPlane({
   // Classify where each pipe currently is positioned
   const pipePositions = useMemo(() => {
     return records.map(pipe => {
-      // 1. Check for NCR quarantine. Does this pipe have any step with a "Fail" or "isNonConform"?
+      // 1. Check for NCR / failed quality observation or explicit rework hold
       let isQuarantined = false;
       let ncrStep = "";
       
@@ -982,11 +982,24 @@ function TrackingPlane({
         }
       }
 
-      if (isQuarantined) {
+      const s8 = pipe.steps[8];
+      const dest = ((s8?.fields as any)?.pipeDestination || "").toUpperCase();
+
+      // If failed observation or explicitly marked ON HOLD / REWORK
+      if (isQuarantined || dest.includes("HOLD") || dest.includes("REWORK")) {
+        return {
+          pipe,
+          stageId: "hold_rework",
+          stageName: `Product On Hold - DP-REWORK (${ncrStep ? ncrStep + " NCR" : "Step 8 Hold"})`
+        };
+      }
+
+      // Check for explicit REJECTED or NON-CONFORM quarantine
+      if (dest.includes("NON-CONFORM") || dest.includes("REJECTED")) {
         return {
           pipe,
           stageId: "quarantine",
-          stageName: `Quarantine (${ncrStep} NCR)`
+          stageName: "NCR Quarantine / Red Tag Area"
         };
       }
 
@@ -1000,9 +1013,7 @@ function TrackingPlane({
       }
 
       // 3. Check if Step 8 is fully completed
-      const s8 = pipe.steps[8];
       if (s8 && s8.isCompleted) {
-        const dest = ((s8.fields as any)?.pipeDestination || "").toUpperCase();
         const isRps = dest.includes("RPS-COMMERCIAL");
         return {
           pipe,
@@ -1102,7 +1113,8 @@ function TrackingPlane({
       dispatch_dp: [],
       dispatch_rps: [],
       delivered: [],
-      quarantine: []
+      quarantine: [],
+      hold_rework: []
     };
     filteredPositions.forEach(({ pipe, stageId }) => {
       if (groups[stageId]) {
@@ -1126,7 +1138,8 @@ function TrackingPlane({
       dispatch_dp: 0,
       dispatch_rps: 0,
       delivered: 0,
-      quarantine: 0
+      quarantine: 0,
+      hold_rework: 0
     };
     pipePositions.forEach(({ stageId }) => {
       if (counts[stageId] !== undefined) {
@@ -1188,6 +1201,15 @@ function TrackingPlane({
         procedure: "Isolate immediate physical item, post physical Red Tag, evaluate rework patches or structural salvage"
       };
     }
+    if (selectedStationId === "hold_rework") {
+      return {
+        name: "PRODUCT ON HOLD - DP-REWORK",
+        icon: AlertTriangle,
+        colorClass: "text-amber-700 bg-amber-50 border-amber-300",
+        desc: "Pipes placed on quality hold due to failed observations in manufacturing steps awaiting rework & pass clearance",
+        procedure: "Inspect failed quality parameters, perform authorized shop-floor rework, re-test until observation passes to unlock destination choice"
+      };
+    }
     const matchingSt = stations.find(s => s.id === selectedStationId);
     return matchingSt ? {
       name: `Station ${matchingSt.stepNo}: ${matchingSt.name}`,
@@ -1223,7 +1245,7 @@ function TrackingPlane({
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-3.5 py-2 text-center text-xs">
             <span className="text-emerald-500 block font-bold uppercase text-[9px] tracking-wider leading-none">Curing / In-Line</span>
             <strong className="text-emerald-800 text-base mt-1 block leading-none">
-              {pipePositions.filter(p => !["dispatch_dp", "dispatch_rps", "delivered", "quarantine"].includes(p.stageId)).length}
+              {pipePositions.filter(p => !["dispatch_dp", "dispatch_rps", "delivered", "quarantine", "hold_rework"].includes(p.stageId)).length}
             </strong>
           </div>
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3.5 py-2 text-center text-xs">
@@ -1231,6 +1253,10 @@ function TrackingPlane({
             <strong className="text-indigo-800 text-base mt-1 block leading-none">
               {pipePositions.filter(p => ["dispatch_dp", "dispatch_rps"].includes(p.stageId)).length}
             </strong>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2 text-center text-xs">
+            <span className="text-amber-700 block font-semibold uppercase text-[9px] tracking-wider leading-none font-bold">⚙️ On Hold / Rework</span>
+            <strong className="text-amber-900 text-base mt-1 block leading-none">{fullStageCounts.hold_rework || 0}</strong>
           </div>
           <div className="bg-blue-50 border border-blue-100 rounded-xl px-3.5 py-2 text-center text-xs">
             <span className="text-blue-500 block font-bold uppercase text-[9px] tracking-wider leading-none font-bold">
@@ -1535,6 +1561,7 @@ function TrackingPlane({
               <option value="step8">Station 8: Inspection ({fullStageCounts.step8})</option>
               <option value="dispatch_dp">Commercial Yard Stock ({fullStageCounts.dispatch_dp})</option>
               <option value="dispatch_rps">RPS Yard Stock ({fullStageCounts.dispatch_rps})</option>
+              <option value="hold_rework">Product On Hold - DP-REWORK ({fullStageCounts.hold_rework || 0})</option>
               <option value="quarantine">NCR Quarantine Red Spot ({fullStageCounts.quarantine})</option>
             </select>
           </div>
@@ -1657,6 +1684,7 @@ function TrackingPlane({
                 selectedStationId === "step8" ? "8. Final Inspection" :
                 selectedStationId === "dispatch_dp" ? "Commercial Ready Yard" :
                 selectedStationId === "dispatch_rps" ? "RPS Yard Stock" :
+                selectedStationId === "hold_rework" ? "Product On Hold - DP-REWORK" :
                 selectedStationId === "delivered" ? "Delivered Handover" : "Delivered Handover"
               }</span>
             </span>
@@ -2341,8 +2369,8 @@ function TrackingPlane({
 
         </div>
 
-        {/* FACTORY STORAGE YARDS (Dispatch Areas & Red Tag Quarantine Areas) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-slate-200 animate-fade-in">
+        {/* FACTORY STORAGE YARDS (Dispatch Areas, Rework Hold & Red Tag Quarantine Areas) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-200 animate-fade-in">
           
           {/* Commercial Ready Yard (DP-COMMERCIAL) */}
           <div 
@@ -2452,6 +2480,53 @@ function TrackingPlane({
                     </div>
                   );
                 })
+              )}
+            </div>
+          </div>
+
+          {/* PRODUCT ON HOLD - DP-REWORK Area */}
+          <div 
+            onClick={() => setSelectedStationId(selectedStationId === "hold_rework" ? "all" : "hold_rework")}
+            className={`cursor-pointer rounded-2xl p-4 transition-all duration-300 border-2 flex flex-col justify-between h-auto min-h-52 ${
+              selectedStationId === "hold_rework"
+                ? "bg-white border-amber-500 shadow-[0_4px_20px_rgba(245,158,11,0.18)] scale-[1.01] z-20"
+                : "bg-white/90 border-slate-200/80 hover:border-slate-350 hover:shadow-sm"
+            }`}
+          >
+            <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-xl border transition ${
+                  selectedStationId === "hold_rework"
+                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                    : "bg-amber-50/55 border-amber-100 text-amber-600"
+                }`}>
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 font-black">⚙️ Product On Hold - DP-REWORK</h3>
+                  <p className="text-[10px] text-amber-700 font-semibold">Quality Hold / Pending Rework</p>
+                </div>
+              </div>
+              <strong className="text-sm text-amber-800 font-extrabold font-mono bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg">
+                {(stageGroups.hold_rework || []).length} units
+              </strong>
+            </div>
+
+            <div className="mt-3.5 flex flex-wrap gap-1.5 overflow-y-auto max-h-32 no-scrollbar content-start">
+              {(!stageGroups.hold_rework || stageGroups.hold_rework.length === 0) ? (
+                <span className="text-[10px] w-full text-center py-4 font-semibold text-slate-400 italic block">No pipes on quality hold or rework</span>
+              ) : (
+                stageGroups.hold_rework.map(p => (
+                  <div 
+                    key={p.pipeId}
+                    className="bg-amber-50 border border-amber-300 text-amber-950 font-mono text-[9px] px-2 py-0.5 rounded-sm flex items-center gap-1 hover:bg-amber-100/60 font-black cursor-pointer shadow-2xs"
+                    title="Pipe on hold until failed quality observations are resolved and updated to Pass"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    {p.pipeId}
+                    <span className="text-[8px] bg-amber-200 text-amber-900 font-extrabold px-1 rounded-sm uppercase tracking-wide">HOLD REWORK</span>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -2610,6 +2685,7 @@ function TrackingPlane({
                   <option value="step8">Station 8: Inspection ({fullStageCounts.step8})</option>
                   <option value="dispatch_dp">Commercial Yard Stock ({fullStageCounts.dispatch_dp})</option>
                   <option value="dispatch_rps">RPS Yard Stock ({fullStageCounts.dispatch_rps})</option>
+                  <option value="hold_rework">Product On Hold - DP-REWORK ({fullStageCounts.hold_rework || 0})</option>
                   <option value="quarantine">NCR Quarantine Red Spot ({fullStageCounts.quarantine})</option>
                 </select>
               </div>
