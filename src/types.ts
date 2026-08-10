@@ -121,6 +121,13 @@ export interface Step4Data {
   cureTime: string;
   testBlock: 'Applicable' | 'Not applicable';
   tgValue?: string;
+  barcolTest?: 'Applicable' | 'Not applicable';
+  barcolValue?: string;
+  barcolMinReq?: string;
+  barcolResult?: string;
+  barcolDeviceSerial?: string;
+  barcolReadings?: string;
+  testResult?: string;
 }
 
 export interface Step5Data {
@@ -302,5 +309,3 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
 }
-
-
