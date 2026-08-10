@@ -54,6 +54,7 @@ export interface BellDetailConfig {
   bc?: number | string;
   bd?: number | string;
   be?: number | string;
+  bf?: number | string;
   bg?: number | string;
   o2b?: number | string; // Ø2B
 }
@@ -63,7 +64,7 @@ export interface ProductParametersConfig {
   thickness?: number | string; // 5-2 Thickness (mm)
   weight?: number | string; // 5-3 Weight (kg)
   spigotDetail?: SpigotDetailConfig; // 5-4 Spigot detail (SA, SB, SC, SD, SE, SF, Ø2S, Ø3S, Ø4S, SG)
-  bellDetail?: BellDetailConfig; // 5-5 Bell detail (BA, BB, BC, BD, BE, BG, Ø2B)
+  bellDetail?: BellDetailConfig; // 5-5 Bell detail (BA, BB, BC, BD, BE, BF, BG, Ø2B)
   spigotNotDefined?: boolean; // Flag to indicate if Spigot Details are Not Defined / N/A
   bellNotDefined?: boolean; // Flag to indicate if Bell Details are Not Defined / N/A
 }
