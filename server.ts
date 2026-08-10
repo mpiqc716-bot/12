@@ -603,9 +603,9 @@ let supabaseAvailable = false;
 let databasePreloaded = false;
 
 // Initialize PostgreSQL Primary Connection safely
-let postgresUrl = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL || "postgresql://postgres:wPDV23s%3D9-y5!C%25@db.gkftbdyvcqnzilrxsgxt.supabase.co:5432/postgres";
+let postgresUrl = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL || "postgresql://neondb_owner:npg_UScFI41AuPWN@ep-square-breeze-b1anlxnu.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require";
 if (postgresUrl.includes("postgres.railway.internal") || postgresUrl.includes("rlwy.net")) {
-  postgresUrl = "postgresql://postgres:wPDV23s%3D9-y5!C%25@db.gkftbdyvcqnzilrxsgxt.supabase.co:5432/postgres";
+  postgresUrl = "postgresql://neondb_owner:npg_UScFI41AuPWN@ep-square-breeze-b1anlxnu.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require";
 }
 
 let pgPool: Pool | null = null;
@@ -1538,11 +1538,10 @@ async function startServer() {
 
   app.get("/api/db-status", (req, res) => {
     res.json({
-      supabaseActive: true,
-      primaryDatabase: "Supabase PostgreSQL",
-      supabaseHost: "db.gkftbdyvcqnzilrxsgxt.supabase.co",
+      neonActive: true,
+      primaryDatabase: "Neon PostgreSQL",
+      postgresHost: "ep-square-breeze-b1anlxnu.c-5.eu-central-1.aws.neon.tech",
       postgresAvailable,
-      supabaseClientAvailable: supabaseAvailable,
       databasePreloaded,
       hasCachedDb: !!cachedDb,
       cachedDbCounts: cachedDb ? {
