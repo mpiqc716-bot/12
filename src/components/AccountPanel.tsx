@@ -18,7 +18,8 @@ import {
   Download,
   Upload,
   Database,
-  FileJson
+  FileJson,
+  ShieldCheck
 } from "lucide-react";
 import { User, UserRole, ToleranceConfig, ParameterTolerance, ProjectConfig, ProjectSettingReferenceData } from "../types";
 
@@ -397,12 +398,13 @@ function AccountPanel({
         const resolvedLimits = matchInExisting?.specificationLimits && Object.keys(matchInExisting.specificationLimits).length > 0
           ? matchInExisting.specificationLimits
           : (existingTol ? {
+              barcolMinReq: existingTol.barcolMinReq || { min: 40, max: "ND" },
               sa: existingTol.sa, sb: existingTol.sb, sc: existingTol.sc, sd: existingTol.sd, se: existingTol.se, sf: existingTol.sf,
               o2s: existingTol.o2s, o3s: existingTol.o3s, o4s: existingTol.o4s, sg: existingTol.sg,
               pipeLength: existingTol.pipeLength, pipeThickness: existingTol.pipeThickness,
               o2b: existingTol.o2b, ba: existingTol.ba, bb: existingTol.bb, bc: existingTol.bc, bd: existingTol.bd, be: existingTol.be, bf: existingTol.bf, bg: existingTol.bg,
               pipeWeight: existingTol.pipeWeight
-            } : {});
+            } : { barcolMinReq: { min: 40, max: "ND" } });
 
         if (matchInExisting) {
           return {
@@ -609,7 +611,7 @@ function AccountPanel({
   };
 
   const ALL_LIMITS_KEYS = [
-    "sa", "sb", "sc", "sd", "se", "sf", "o2s", "o3s", "o4s", "sg", "pipeLength", "pipeThickness",
+    "barcolMinReq", "sa", "sb", "sc", "sd", "se", "sf", "o2s", "o3s", "o4s", "sg", "pipeLength", "pipeThickness",
     "o2b", "ba", "bb", "bc", "bd", "be", "bf", "bg", "pipeWeight"
   ];
 
@@ -1899,15 +1901,46 @@ function AccountPanel({
                                 </div>
                               </div>
 
-                              {/* 6 - Specification Limits Data (Dimensional Tolerances) */}
+                              {/* 6 - Specification Limits Data (Dimensional & Material Quality Tolerances) */}
                               <div className="bg-amber-50/40 p-3 rounded-lg border border-amber-200/80 space-y-3">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider block">
-                                    6 - Specification Limits Data (Min / Max Tolerances)
+                                    6 - Specification Limits Data (Quality Controls & Tolerances)
                                   </span>
                                   <span className="text-[9px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded">
-                                    Auto-validated in Steps 6, 7 & 8
+                                    Auto-validated in Steps 4, 6, 7 & 8
                                   </span>
+                                </div>
+
+                                {/* 6-0 Step 4 Barcol Hardness Min Requirement */}
+                                <div className="space-y-1 bg-emerald-50/60 p-2 rounded-md border border-emerald-200/80">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                      <span className="text-[9px] font-extrabold text-emerald-950 uppercase tracking-wide">
+                                        Step 4 Cure - Barcol Hardness Min Requirement (HBa) [Admin Determined]
+                                      </span>
+                                    </div>
+                                    <span className="text-[8px] font-black bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded uppercase">
+                                      Admin Only
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 bg-white/90 p-1.5 rounded border border-emerald-200">
+                                    <span className="text-[9px] text-gray-650 font-medium">
+                                      Min Barcol Hardness required during Step 4 Protocol & Evaluation:
+                                    </span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <span className="text-[9px] font-bold text-gray-700">Min:</span>
+                                      <input
+                                        type="text"
+                                        placeholder="40"
+                                        value={getSpecLimitVal(detail, "barcolMinReq", "min") || "40"}
+                                        onChange={(e) => updateSpecLimit(index, "barcolMinReq", "min", e.target.value)}
+                                        className="w-16 bg-emerald-50 border border-emerald-300 rounded text-[10px] px-1.5 py-0.5 font-mono font-black text-emerald-950 text-center focus:border-emerald-600 focus:outline-none"
+                                      />
+                                      <span className="text-[9px] font-extrabold text-emerald-900">HBa</span>
+                                    </div>
+                                  </div>
                                 </div>
 
                                 {/* 6-1 Product Specification Limits */}
