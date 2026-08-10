@@ -287,7 +287,7 @@ function AccountPanel({
       const spigotObj = (item.productParameters.spigotDetail || {}) as any;
       return spigotObj[paramKey] === "N/A" || spigotObj[paramKey] === "ND";
     }
-    const bellKeys = ["ba", "bb", "bc", "bd", "be", "bg", "o2b"];
+    const bellKeys = ["ba", "bb", "bc", "bd", "be", "bf", "bg", "o2b"];
     if (bellKeys.includes(paramKey)) {
       if (item.productParameters.bellNotDefined) return true;
       const bellObj = (item.productParameters.bellDetail || {}) as any;
@@ -327,7 +327,7 @@ function AccountPanel({
           const existingSpigot = updatedProductParams.spigotDetail || {};
           updatedProductParams.spigotDetail = { ...existingSpigot, [paramKey]: newVal };
         }
-        const bellKeys = ["ba", "bb", "bc", "bd", "be", "bg", "o2b"];
+        const bellKeys = ["ba", "bb", "bc", "bd", "be", "bf", "bg", "o2b"];
         if (bellKeys.includes(paramKey)) {
           const existingBell = updatedProductParams.bellDetail || {};
           updatedProductParams.bellDetail = { ...existingBell, [paramKey]: newVal };
@@ -418,7 +418,7 @@ function AccountPanel({
               thickness: "",
               weight: "",
               spigotDetail: { sa: "", sb: "", sc: "", sd: "", se: "", sf: "", o2s: "", o3s: "", o4s: "", sg: "" },
-              bellDetail: { ba: "", bb: "", bc: "", bd: "", be: "", bg: "", o2b: "" }
+              bellDetail: { ba: "", bb: "", bc: "", bd: "", be: "", bf: "", bg: "", o2b: "" }
             },
             specificationLimits: resolvedLimits
           };
@@ -446,7 +446,7 @@ function AccountPanel({
             thickness: "",
             weight: "",
             spigotDetail: { sa: "", sb: "", sc: "", sd: "", se: "", sf: "", o2s: "", o3s: "", o4s: "", sg: "" },
-            bellDetail: { ba: "", bb: "", bc: "", bd: "", be: "", bg: "", o2b: "" }
+            bellDetail: { ba: "", bb: "", bc: "", bd: "", be: "", bf: "", bg: "", o2b: "" }
           },
           specificationLimits: resolvedLimits
         };
@@ -1832,8 +1832,8 @@ function AccountPanel({
                                       Bell Details are NOT DEFINED {isBellAutoNotDef ? `(Default for Junction: ${jType})` : "(Selected as Not Defined)"}
                                     </div>
                                   ) : (
-                                    <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-                                      {["ba", "bb", "bc", "bd", "be", "bg", "o2b"].map((key) => {
+                                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                                      {["ba", "bb", "bc", "bd", "be", "bf", "bg", "o2b"].map((key) => {
                                         const displayLabel = key === "o2b" ? "Ø2B" : key.toUpperCase();
                                         const bellObj = (detail.productParameters?.bellDetail || {}) as any;
                                         const val = bellObj[key] ?? "";
@@ -2059,13 +2059,14 @@ function AccountPanel({
                                       Bell Specification Limits are Not Defined / Not Applicable.
                                     </div>
                                   ) : (
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5">
                                       {[
                                         { key: "ba", label: "BA" },
                                         { key: "bb", label: "BB" },
                                         { key: "bc", label: "BC" },
                                         { key: "bd", label: "BD" },
                                         { key: "be", label: "BE" },
+                                        { key: "bf", label: "BF" },
                                         { key: "bg", label: "BG" },
                                         { key: "o2b", label: "Ø2B" }
                                       ].map(({ key, label }) => {
