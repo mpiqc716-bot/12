@@ -235,6 +235,9 @@ export interface ToleranceConfig {
   project: string; // projectWorkOrder or "All Projects"
   specification: string; // settingReference or "All Specifications"
   
+  // Step 4 Barcol Hardness Min Requirement (HBa)
+  barcolMinReq?: ParameterTolerance;
+
   // Step 6 Spigot parameters (mm)
   sa?: ParameterTolerance;
   sb?: ParameterTolerance;
