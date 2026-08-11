@@ -50,6 +50,27 @@ function ProjectReferenceModule({
   const [newRefInput, setNewRefInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
+  const [viewingProjectSpecs, setViewingProjectSpecs] = useState<ProjectConfig | null>(null);
+
+  const getResolvedLimits = (det?: ProjectSettingReferenceData, projectCode?: string) => {
+    if (det?.specificationLimits && Object.keys(det.specificationLimits).length > 0) {
+      return det.specificationLimits;
+    }
+    if (!det || !projectCode) return {};
+    const matchedTol = tolerances?.find(t => 
+      (t.project === projectCode || t.project === "All Projects") && 
+      (t.specification === det.settingReference || t.specification === "All Specifications")
+    );
+    if (!matchedTol) return {};
+    return {
+      barcolMinReq: matchedTol.barcolMinReq,
+      sa: matchedTol.sa, sb: matchedTol.sb, sc: matchedTol.sc, sd: matchedTol.sd, se: matchedTol.se, sf: matchedTol.sf,
+      o2s: matchedTol.o2s, o3s: matchedTol.o3s, o4s: matchedTol.o4s, sg: matchedTol.sg,
+      pipeLength: matchedTol.pipeLength, pipeThickness: matchedTol.pipeThickness,
+      o2b: matchedTol.o2b, ba: matchedTol.ba, bb: matchedTol.bb, bc: matchedTol.bc, bd: matchedTol.bd, be: matchedTol.be, bf: matchedTol.bf, bg: matchedTol.bg,
+      pipeWeight: matchedTol.pipeWeight
+    };
+  };
 
   const getHeaders = () => {
     const token = localStorage.getItem("pipe_tracker_token");
@@ -1441,6 +1462,17 @@ function ProjectReferenceModule({
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setViewingProjectSpecs(p)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer shadow-3xs flex items-center gap-1.5"
+                        title="View Full Specification Sheet"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">View Full Specs</span>
+                        <span className="sm:hidden">Specs</span>
+                      </button>
+
                       {isAdmin && (
                         <>
                           <button
@@ -1548,6 +1580,38 @@ function ProjectReferenceModule({
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Specification Limits & Tolerances Matrix */}
+                                {(() => {
+                                  const lims = getResolvedLimits(det, p.projectCode);
+                                  if (!lims || Object.keys(lims).length === 0) return null;
+                                  return (
+                                    <div className="bg-amber-50/50 p-2 rounded-lg border border-amber-200/80 space-y-1">
+                                      <span className="font-bold text-amber-950 block uppercase text-[9px]">Specification Limits & QC Tolerances:</span>
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 font-mono text-[9px] text-gray-700">
+                                        {Object.entries(lims).map(([paramKey, limitObj]: [string, any]) => {
+                                          if (!limitObj || (limitObj.min === undefined && limitObj.max === undefined)) return null;
+                                          const labelMap: Record<string, string> = {
+                                            barcolMinReq: "Barcol", sa: "SA", sb: "SB", sc: "SC", sd: "SD", se: "SE", sf: "SF", o2s: "Ø2S", o3s: "Ø3S", o4s: "Ø4S", sg: "SG",
+                                            pipeLength: "Length", pipeThickness: "Thickness", pipeWeight: "Weight",
+                                            o2b: "Ø2B", ba: "BA", bb: "BB", bc: "BC", bd: "BD", be: "BE", bf: "BF", bg: "BG"
+                                          };
+                                          const name = labelMap[paramKey] || paramKey.toUpperCase();
+                                          const minVal = limitObj.min !== undefined && limitObj.min !== null && limitObj.min !== "ND" ? limitObj.min : "ND";
+                                          const maxVal = limitObj.max !== undefined && limitObj.max !== null && limitObj.max !== "ND" ? limitObj.max : "ND";
+                                          return (
+                                            <div key={paramKey} className="bg-white/90 p-1 rounded border border-amber-100 flex justify-between gap-1">
+                                              <span className="font-bold text-amber-950">{name}:</span>
+                                              <span className="text-gray-800">
+                                                {minVal !== "ND" ? `Min:${minVal}` : ""}{minVal !== "ND" && maxVal !== "ND" ? " " : ""}{maxVal !== "ND" ? `Max:${maxVal}` : ""}{minVal === "ND" && maxVal === "ND" ? "N/A" : ""}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
 
@@ -1568,6 +1632,205 @@ function ProjectReferenceModule({
         )}
       </div>
 
+      {/* Read-Only Project Specification Sheet Modal */}
+      {viewingProjectSpecs && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 flex flex-col my-auto">
+            
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-t-3xl sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/10 shadow-md">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-indigo-400" />
+                    Project Specification Sheet: {viewingProjectSpecs.projectCode}
+                  </h3>
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold px-3 py-0.5 rounded-full flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    Operator Read-Only Access
+                  </span>
+                </div>
+                <div className="text-xs text-slate-300 flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
+                  {viewingProjectSpecs.client && <span>Client: <strong className="text-white">{viewingProjectSpecs.client}</strong></span>}
+                  <span>Target Volume: <strong className="text-white">{viewingProjectSpecs.targetQuantityMeters ?? "N/A"} meters</strong></span>
+                  {viewingProjectSpecs.productionStartDate && (
+                    <span>Schedule: <strong className="text-white">{new Date(viewingProjectSpecs.productionStartDate).toLocaleDateString()} - {viewingProjectSpecs.productionEndDate ? new Date(viewingProjectSpecs.productionEndDate).toLocaleDateString() : 'N/A'}</strong></span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setViewingProjectSpecs(null)}
+                className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl transition cursor-pointer shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-950 flex items-center gap-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Operator Specification View:</strong> Complete product parameter specifications, pipe material classification, spigot & bell dimensions, and Quality Control tolerance limits for project <strong>{viewingProjectSpecs.projectCode}</strong>.
+                </span>
+              </div>
+
+              {/* Setting References Specifications List */}
+              <div className="space-y-6">
+                {viewingProjectSpecs.settingReferences.map((ref, idx) => {
+                  const det = viewingProjectSpecs.settingRefDetails?.find(d => d.settingReference.toUpperCase() === ref.toUpperCase());
+                  const limits = getResolvedLimits(det, viewingProjectSpecs.projectCode);
+
+                  return (
+                    <div key={ref} className="bg-white border-2 border-indigo-100 rounded-2xl p-5 shadow-xs space-y-4">
+                      
+                      {/* Header */}
+                      <div className="flex flex-wrap items-center justify-between border-b border-indigo-100 pb-3 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-sm text-indigo-900 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-xl shadow-2xs">
+                            {ref}
+                          </span>
+                          <span className="text-xs text-gray-500 font-bold">Setting Reference #{idx + 1}</span>
+                        </div>
+                        {det?.targetQuantityMeters && (
+                          <span className="text-xs font-extrabold text-indigo-800 bg-indigo-50/80 px-3 py-1 rounded-lg border border-indigo-150">
+                            Volume Target: {det.targetQuantityMeters} m
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Grid for Class & Type */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Pipe Class</span>
+                          <div className="text-xs font-black text-slate-900 font-mono">
+                            DN: {det?.pipeClass?.nominalDiameter || "N/A"} mm | PN: {det?.pipeClass?.nominalPressure || "N/A"} bar | SN: {det?.pipeClass?.nominalStiffness || "N/A"} N/m²
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Pipe Material Type</span>
+                          <div className="text-xs font-black text-indigo-700">
+                            {det?.pipeType || "GRE"}
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Junction / Joint Type</span>
+                          <div className="text-xs font-black text-slate-900">
+                            {det?.junctionType || "BELL/SPIGOT 1OR"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Product Nominal Parameters */}
+                      <div className="bg-emerald-50/40 p-3.5 rounded-xl border border-emerald-200/80 space-y-1.5">
+                        <span className="text-[11px] font-extrabold text-emerald-900 uppercase tracking-wider block">
+                          Product Nominal Parameters
+                        </span>
+                        <div className="grid grid-cols-3 gap-3 text-xs text-emerald-950 font-bold">
+                          <div>Length: <span className="font-mono font-black">{det?.productParameters?.length || "N/A"} mm</span></div>
+                          <div>Thickness: <span className="font-mono font-black">{det?.productParameters?.thickness || "N/A"} mm</span></div>
+                          <div>Weight: <span className="font-mono font-black">{det?.productParameters?.weight || "N/A"} kg</span></div>
+                        </div>
+                      </div>
+
+                      {/* Spigot Details */}
+                      <div className="bg-blue-50/40 p-3.5 rounded-xl border border-blue-200/80 space-y-1.5">
+                        <span className="text-[11px] font-extrabold text-blue-900 uppercase tracking-wider block">
+                          Spigot Dimensional Specifications (mm)
+                        </span>
+                        {det?.productParameters?.spigotNotDefined ? (
+                          <div className="text-xs text-blue-700 italic font-semibold">Spigot Details are Not Defined for this junction.</div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
+                            {Object.entries(det?.productParameters?.spigotDetail || {}).map(([k, v]) => (
+                              <div key={k} className="bg-white/80 p-1.5 rounded-lg border border-blue-150 flex justify-between">
+                                <span className="font-bold text-blue-900 uppercase">{k}:</span>
+                                <span className="font-black text-gray-800">{v as string || "N/A"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bell Details */}
+                      <div className="bg-purple-50/40 p-3.5 rounded-xl border border-purple-200/80 space-y-1.5">
+                        <span className="text-[11px] font-extrabold text-purple-900 uppercase tracking-wider block">
+                          Bell Dimensional Specifications (mm)
+                        </span>
+                        {det?.productParameters?.bellNotDefined ? (
+                          <div className="text-xs text-purple-700 italic font-semibold">Bell Details are Not Defined for this junction.</div>
+                        ) : (
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                            {Object.entries(det?.productParameters?.bellDetail || {}).map(([k, v]) => (
+                              <div key={k} className="bg-white/80 p-1.5 rounded-lg border border-purple-150 flex justify-between">
+                                <span className="font-bold text-purple-900 uppercase">{k === "o2b" ? "Ø2B" : k}:</span>
+                                <span className="font-black text-gray-800">{v as string || "N/A"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* QC Tolerances & Limits Matrix */}
+                      <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-200 space-y-2">
+                        <span className="text-[11px] font-extrabold text-amber-950 uppercase tracking-wider block">
+                          Quality Control Specification Limits & Tolerances Matrix
+                        </span>
+                        {Object.keys(limits).length === 0 ? (
+                          <div className="text-xs text-amber-800 italic">No specific tolerance limits registered for this reference key.</div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 font-mono text-xs">
+                            {Object.entries(limits).map(([paramKey, limitObj]: [string, any]) => {
+                              if (!limitObj || (limitObj.min === undefined && limitObj.max === undefined)) return null;
+                              const labelMap: Record<string, string> = {
+                                barcolMinReq: "Barcol Hardness (HBa)", sa: "SA Spigot", sb: "SB Spigot", sc: "SC Spigot", sd: "SD Spigot", se: "SE Spigot", sf: "SF Spigot", o2s: "Ø2S Spigot", o3s: "Ø3S Spigot", o4s: "Ø4S Spigot", sg: "SG Spigot",
+                                pipeLength: "Pipe Length", pipeThickness: "Pipe Thickness", pipeWeight: "Pipe Weight",
+                                o2b: "Ø2B Bell", ba: "BA Bell", bb: "BB Bell", bc: "BC Bell", bd: "BD Bell", be: "BE Bell", bf: "BF Bell", bg: "BG Bell"
+                              };
+                              const name = labelMap[paramKey] || paramKey.toUpperCase();
+                              const minVal = limitObj.min !== undefined && limitObj.min !== null && limitObj.min !== "ND" ? limitObj.min : "ND";
+                              const maxVal = limitObj.max !== undefined && limitObj.max !== null && limitObj.max !== "ND" ? limitObj.max : "ND";
+
+                              return (
+                                <div key={paramKey} className="bg-white p-2 rounded-lg border border-amber-200 shadow-2xs flex justify-between items-center gap-2">
+                                  <span className="font-bold text-amber-950 text-[11px]">{name}</span>
+                                  <span className="text-xs font-black text-slate-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                                    {minVal !== "ND" ? `Min: ${minVal}` : ""}{minVal !== "ND" && maxVal !== "ND" ? " | " : ""}{maxVal !== "ND" ? `Max: ${maxVal}` : ""}{minVal === "ND" && maxVal === "ND" ? "N/A" : ""}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl flex justify-between items-center">
+              <span className="text-xs text-gray-500 font-medium">
+                Official QC Specification Record for Operators
+              </span>
+              <button
+                type="button"
+                onClick={() => setViewingProjectSpecs(null)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
+              >
+                Close Specification Sheet
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
