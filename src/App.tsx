@@ -17,10 +17,9 @@ import {
   Shield,
   Activity,
   Award,
-  BookOpen,
-  MessageSquare,
   Map,
-  Palette
+  Palette,
+  Settings
 } from "lucide-react";
 import { 
   User, 
@@ -31,18 +30,16 @@ import {
   PipeType,
   StepQualityCheck,
   ToleranceConfig,
-  ProjectConfig,
-  ChatMessage
+  ProjectConfig
 } from "./types";
 import HeaderForm from "./components/HeaderForm";
 import StepDetail from "./components/StepDetail";
 
 const PipeDashboard = React.lazy(() => import("./components/PipeDashboard"));
 const AccountPanel = React.lazy(() => import("./components/AccountPanel"));
-const InteractiveTutorial = React.lazy(() => import("./components/InteractiveTutorial"));
-const DiscussionBoard = React.lazy(() => import("./components/DiscussionBoard"));
 const PortfolioAnalytics = React.lazy(() => import("./components/PortfolioAnalytics"));
 const TrackingPlane = React.lazy(() => import("./components/TrackingPlane"));
+const ProjectReferenceModule = React.lazy(() => import("./components/ProjectReferenceModule"));
 
 const TabLoadingSkeleton = () => (
   <div className="w-full space-y-6 py-6 animate-pulse">
@@ -130,13 +127,8 @@ export default function App() {
 
   const currentThemeStyle = THEME_STYLES[theme] || THEME_STYLES.steel;
 
-  // Layout navigation: tracker (the scanning form) | records (dashboard table database) | analytics (Advanced Portfolio Analytics) | manual (user guide & presentation clip) | account (credentials/operator desk) | chat (shift discussion board) | tracking-plane (visual 2D layout)
-  const [activeTab, setActiveTab ] = useState<"tracker" | "records" | "analytics" | "manual" | "account" | "chat" | "tracking-plane">("tracker");
-  
-  // Discussion chat states
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [unreadChatMessages, setUnreadChatMessages] = useState<number>(0);
+  // Layout navigation: tracker (the scanning form) | records (dashboard table database) | analytics (Advanced Portfolio Analytics) | account (credentials/operator desk) | tracking-plane (visual 2D layout) | project-specs (Project Specs Module)
+  const [activeTab, setActiveTab ] = useState<"tracker" | "records" | "analytics" | "account" | "tracking-plane" | "project-specs">("tracker");
 
   // Tab navigation history states
   const [tabHistory, setTabHistory] = useState<string[]>(["tracker"]);
@@ -146,9 +138,6 @@ export default function App() {
   const activeTabRef = useRef(activeTab);
   useEffect(() => {
     activeTabRef.current = activeTab;
-    if (activeTab === "chat") {
-      setUnreadChatMessages(0);
-    }
 
     // Automatically record tab switches in history if driven from user actions (like footer tabs)
     if (tabHistory[historyIndex] !== activeTab) {
@@ -339,8 +328,6 @@ export default function App() {
     } else if (activeTab === "account") {
       fetchTolerances();
       fetchProjects();
-    } else if (activeTab === "manual") {
-      fetchAppUsers();
     }
   }, [activeTab, token]);
 
@@ -366,19 +353,9 @@ export default function App() {
               if (data.activeOperators) {
                 setActiveOperators(data.activeOperators);
               }
-              if (data.chatMessages) {
-                setChatMessages(data.chatMessages);
-              }
             } else if (data.type === "presence-update") {
               if (data.activeOperators) {
                 setActiveOperators(data.activeOperators);
-              }
-            } else if (data.type === "chat-message") {
-              if (data.chatMessages) {
-                setChatMessages(data.chatMessages);
-                if (activeTabRef.current !== "chat") {
-                  setUnreadChatMessages((prev) => prev + 1);
-                }
               }
             }
           } catch (err) {
@@ -406,10 +383,9 @@ export default function App() {
         // Tolerances, projects, and users are highly static and loaded once on login / updated manually on Account actions.
         // We do not poll them repetitively here to prevent unnecessary network egress.
 
-        // If the live event stream falls back or fails, continue regular polling for logs and messages
+        // If the live event stream falls back or fails, continue regular polling for logs
         if (!eventSource) {
           fetchActivityFeed();
-          fetchChatHistorySilently(true);
         }
       }, 60000);
 
@@ -465,7 +441,6 @@ export default function App() {
         setDashboardStats(data.stats || null);
         setTolerances(data.tolerances || []);
         setProjects(data.projects || []);
-        setChatMessages(data.chat || []);
         setAppUsers(data.users || []);
         setActiveOperators(data.activeOperators || []);
         setRecentLogs(data.recentLogs || []);
@@ -477,7 +452,6 @@ export default function App() {
         lastFetchTimestamps.current["tolerances"] = now;
         lastFetchTimestamps.current["projects"] = now;
         lastFetchTimestamps.current["users"] = now;
-        lastFetchTimestamps.current["chat"] = now;
         lastFetchTimestamps.current["activity-feed"] = now;
       } else if (res.status === 410 || res.status === 401) {
         handleLogout();
@@ -544,57 +518,6 @@ export default function App() {
       }
     } catch (err) {
       console.error("Error fetching app users:", err);
-    }
-  };
-
-  const fetchChatHistory = async (force = false) => {
-    if (!token) return;
-    if (!force && !shouldFetch("chat", 15000)) return;
-    setIsLoadingChat(true);
-    try {
-      const res = await fetch("/api/chat", { headers: getHeaders() });
-      if (res.ok) {
-        const data = await safeParseJson(res);
-        setChatMessages(data || []);
-      }
-    } catch (err) {
-      console.error("Error fetching chat history:", err);
-    } finally {
-      setIsLoadingChat(false);
-    }
-  };
-
-  const fetchChatHistorySilently = async (force = false) => {
-    if (!token) return;
-    if (!force && !shouldFetch("chat", 15000)) return;
-    try {
-      const res = await fetch("/api/chat", { headers: getHeaders() });
-      if (res.ok) {
-        const data = await safeParseJson(res);
-        setChatMessages(data || []);
-      }
-    } catch (err) {}
-  };
-
-  const handleSendMessage = async (text: string) => {
-    if (!token) return;
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify({ text })
-    });
-    if (res.ok) {
-      const data = await safeParseJson(res);
-      if (data.success && data.message) {
-        setChatMessages(prev => {
-          if (prev.some(m => m.id === data.message.id)) return prev;
-          return [...prev, data.message];
-        });
-      }
-      fetchActivityFeed(true);
-    } else {
-      const errData = await safeParseJson(res);
-      throw new Error(errData.error || "Failed to submit message");
     }
   };
 
@@ -1448,9 +1371,15 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === "manual" && (
+        {activeTab === "project-specs" && (
           <div className="animate-fade-in">
-            <InteractiveTutorial currentUser={currentUser} pipeRecords={pipeRecords} activeOperators={activeOperators} appUsers={appUsers} />
+            <ProjectReferenceModule
+              currentUser={currentUser}
+              projects={projects}
+              onRefreshProjects={fetchProjects}
+              tolerances={tolerances}
+              onRefreshTolerances={fetchTolerances}
+            />
           </div>
         )}
 
@@ -1464,18 +1393,7 @@ export default function App() {
               projects={projects}
               onRefreshProjects={fetchProjects}
               onRestoreDatabase={fetchBootstrapData}
-            />
-          </div>
-        )}
-
-        {activeTab === "chat" && (
-          <div className="animate-fade-in">
-            <DiscussionBoard
-              currentUser={currentUser}
-              chatMessages={chatMessages}
-              activeOperators={activeOperators}
-              onSendMessage={handleSendMessage}
-              isLoadingHistory={isLoadingChat}
+              onNavigateToProjectSpecs={() => setActiveTab("project-specs")}
             />
           </div>
         )}
@@ -1496,9 +1414,9 @@ export default function App() {
         </React.Suspense>
       </main>
 
-      {/* Primary Bottom Navigation Bar (Tracker / Records / Forecaster / Chat / Manual / Account) */}
+      {/* Primary Bottom Navigation Bar (Tracker / Ledgers / Projects / Floor Map / Analytics / Account) */}
       <footer className={`${currentThemeStyle.footer} border-t shadow-2xl fixed bottom-0 left-0 right-0 z-40 select-none transition-colors duration-300`}>
-        <div className="max-w-4xl mx-auto grid grid-cols-7 text-center h-16 py-1.5">
+        <div className="max-w-5xl mx-auto grid grid-cols-6 text-center h-16 py-1.5">
           
           <button
             onClick={() => setActiveTab("tracker")}
@@ -1521,6 +1439,16 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => setActiveTab("project-specs")}
+            className={`flex flex-col items-center justify-center gap-0.5 text-xs transition group cursor-pointer ${
+              activeTab === "project-specs" ? currentThemeStyle.activeTab : currentThemeStyle.inactiveTab
+            }`}
+          >
+            <Settings className="w-5 h-5 transition-transform group-active:scale-90" />
+            <span>Projects</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab("tracking-plane")}
             className={`flex flex-col items-center justify-center gap-0.5 text-xs transition group cursor-pointer ${
               activeTab === "tracking-plane" ? currentThemeStyle.activeTab : currentThemeStyle.inactiveTab
@@ -1538,36 +1466,6 @@ export default function App() {
           >
             <Activity className="w-5 h-5 transition-transform group-active:scale-90" />
             <span>Analytics</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab("chat");
-              fetchChatHistory();
-            }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-xs transition group cursor-pointer ${
-              activeTab === "chat" ? currentThemeStyle.activeTab : currentThemeStyle.inactiveTab
-            }`}
-          >
-            <div className="relative">
-              <MessageSquare className="w-5 h-5 transition-transform group-active:scale-90" />
-              {unreadChatMessages > 0 && (
-                <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white font-extrabold text-[9px] px-1 rounded-full flex items-center justify-center min-w-[16px] h-4 leading-none border border-white animate-bounce shadow-md">
-                  {unreadChatMessages}
-                </span>
-              )}
-            </div>
-            <span>Floor Chat</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("manual")}
-            className={`flex flex-col items-center justify-center gap-0.5 text-xs transition group cursor-pointer ${
-              activeTab === "manual" ? currentThemeStyle.activeTab : currentThemeStyle.inactiveTab
-            }`}
-          >
-            <BookOpen className="w-5 h-5 transition-transform group-active:scale-90" />
-            <span>Guide</span>
           </button>
 
           <button
