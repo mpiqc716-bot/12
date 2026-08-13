@@ -143,33 +143,35 @@ export function OperatorStats({ records, currentUser, appUsers }: OperatorStatsP
     });
   }, [records, selectedOperator]);
 
-  // Apply search query and status filter
+  // Apply search query and status filter (ordered by Pipe N° from low to high)
   const filteredPipeStats = useMemo(() => {
     const searchLower = searchQuery.toLowerCase().trim();
 
-    return pipeStatistics.filter(item => {
-      // Status filter
-      if (statusFilter !== "ALL" && item.status !== statusFilter) {
-        return false;
-      }
+    return pipeStatistics
+      .filter(item => {
+        // Status filter
+        if (statusFilter !== "ALL" && item.status !== statusFilter) {
+          return false;
+        }
 
-      // Month filter
-      if (monthFilter !== "All" && item.createdAt) {
-        const itemMonth = new Date(item.createdAt).toLocaleString("en-US", { month: "long" });
-        if (itemMonth !== monthFilter) return false;
-      }
+        // Month filter
+        if (monthFilter !== "All" && item.createdAt) {
+          const itemMonth = new Date(item.createdAt).toLocaleString("en-US", { month: "long" });
+          if (itemMonth !== monthFilter) return false;
+        }
 
-      // Search filter
-      if (searchLower) {
-        const matchesPipeId = item.pipeId.toLowerCase().includes(searchLower);
-        const matchesWO = item.projectWorkOrder.toLowerCase().includes(searchLower);
-        const matchesType = item.pipeType.toLowerCase().includes(searchLower);
-        const matchesCreator = item.createdBy.toLowerCase().includes(searchLower);
-        return matchesPipeId || matchesWO || matchesType || matchesCreator;
-      }
+        // Search filter
+        if (searchLower) {
+          const matchesPipeId = item.pipeId.toLowerCase().includes(searchLower);
+          const matchesWO = item.projectWorkOrder.toLowerCase().includes(searchLower);
+          const matchesType = item.pipeType.toLowerCase().includes(searchLower);
+          const matchesCreator = item.createdBy.toLowerCase().includes(searchLower);
+          return matchesPipeId || matchesWO || matchesType || matchesCreator;
+        }
 
-      return true;
-    });
+        return true;
+      })
+      .sort((a, b) => (a.pipeId || "").localeCompare(b.pipeId || "", undefined, { numeric: true, sensitivity: "base" }));
   }, [pipeStatistics, statusFilter, monthFilter, searchQuery]);
 
   // KPI Metrics counts
