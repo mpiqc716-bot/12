@@ -144,25 +144,27 @@ export function ShiftStats({ records, currentUser }: ShiftStatsProps) {
     }).filter(p => p.matchesFilterScope);
   }, [records, selectedShift, selectedDate]);
 
-  // Apply status and search query filter
+  // Apply status and search query filter (ordered by Pipe N° from low to high)
   const filteredShiftStats = useMemo(() => {
     const searchLower = searchQuery.toLowerCase().trim();
 
-    return shiftStatistics.filter(item => {
-      if (statusFilter !== "ALL" && item.status !== statusFilter) {
-        return false;
-      }
+    return shiftStatistics
+      .filter(item => {
+        if (statusFilter !== "ALL" && item.status !== statusFilter) {
+          return false;
+        }
 
-      if (searchLower) {
-        const matchesPipeId = item.pipeId.toLowerCase().includes(searchLower);
-        const matchesWO = item.projectWorkOrder.toLowerCase().includes(searchLower);
-        const matchesType = item.pipeType.toLowerCase().includes(searchLower);
-        const matchesCreator = item.createdBy.toLowerCase().includes(searchLower);
-        return matchesPipeId || matchesWO || matchesType || matchesCreator;
-      }
+        if (searchLower) {
+          const matchesPipeId = item.pipeId.toLowerCase().includes(searchLower);
+          const matchesWO = item.projectWorkOrder.toLowerCase().includes(searchLower);
+          const matchesType = item.pipeType.toLowerCase().includes(searchLower);
+          const matchesCreator = item.createdBy.toLowerCase().includes(searchLower);
+          return matchesPipeId || matchesWO || matchesType || matchesCreator;
+        }
 
-      return true;
-    });
+        return true;
+      })
+      .sort((a, b) => (a.pipeId || "").localeCompare(b.pipeId || "", undefined, { numeric: true, sensitivity: "base" }));
   }, [shiftStatistics, statusFilter, searchQuery]);
 
   // KPI Metrics
