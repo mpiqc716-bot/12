@@ -94,25 +94,27 @@ export function generateOperatorShiftReport(
     };
   });
 
-  // Filter by status, month, and search query
-  const filteredStats = pipeStatistics.filter(item => {
-    if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+  // Filter by status, month, and search query (sorted by Pipe N° from low to high)
+  const filteredStats = pipeStatistics
+    .filter(item => {
+      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
 
-    if (monthFilter !== "All" && item.createdAt) {
-      const itemMonth = new Date(item.createdAt).toLocaleString("en-US", { month: "long" });
-      if (itemMonth !== monthFilter) return false;
-    }
+      if (monthFilter !== "All" && item.createdAt) {
+        const itemMonth = new Date(item.createdAt).toLocaleString("en-US", { month: "long" });
+        if (itemMonth !== monthFilter) return false;
+      }
 
-    if (searchQuery) {
-      const matchId = item.pipeId.toLowerCase().includes(searchQuery);
-      const matchWO = item.projectWorkOrder.toLowerCase().includes(searchQuery);
-      const matchType = item.pipeType.toLowerCase().includes(searchQuery);
-      const matchOp = item.createdBy.toLowerCase().includes(searchQuery);
-      return matchId || matchWO || matchType || matchOp;
-    }
+      if (searchQuery) {
+        const matchId = item.pipeId.toLowerCase().includes(searchQuery);
+        const matchWO = item.projectWorkOrder.toLowerCase().includes(searchQuery);
+        const matchType = item.pipeType.toLowerCase().includes(searchQuery);
+        const matchOp = item.createdBy.toLowerCase().includes(searchQuery);
+        return matchId || matchWO || matchType || matchOp;
+      }
 
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => (a.pipeId || "").localeCompare(b.pipeId || "", undefined, { numeric: true, sensitivity: "base" }));
 
   // KPI Counts
   const totalCount = pipeStatistics.length;
