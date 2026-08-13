@@ -564,7 +564,7 @@ function ProjectReferenceModule({
               <input
                 id="module-input-project-client"
                 type="text"
-                placeholder="e.g. Saudi Aramco / SWCC / ADNOC"
+                placeholder="e.g. National Water Corp / Global Energy Co"
                 value={formClient}
                 onChange={(e) => {
                   const val = e.target.value;
