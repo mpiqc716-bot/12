@@ -13,21 +13,25 @@ import {
 import { PipeRecord, User, ProjectConfig, ToleranceConfig } from "../types";
 import { exportProjectAnalysisToPDF, exportAllProjectsSummaryToPDF } from "../utils/projectPdfGenerator";
 import { generateFailedNcrReportPDF } from "../utils/complianceReportGenerator";
+import { OperatorStats } from "./OperatorStats";
+import { ShiftStats } from "./ShiftStats";
 
 interface PortfolioAnalyticsProps {
   records: PipeRecord[];
   currentUser: User | null;
   projects: ProjectConfig[];
   tolerances: ToleranceConfig[];
+  appUsers?: User[];
 }
 
 function PortfolioAnalytics({
   records,
   currentUser,
   projects,
-  tolerances
+  tolerances,
+  appUsers = []
 }: PortfolioAnalyticsProps) {
-  const [portfolioViewTab, setPortfolioViewTab] = useState<"analytics" | "projects">("analytics");
+  const [portfolioViewTab, setPortfolioViewTab] = useState<"analytics" | "projects" | "operators" | "shifts">("analytics");
   const [selectedProjectCode, setSelectedProjectCode] = useState<string>("ALL");
   const [reportPeriod, setReportPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [reportDate, setReportDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -304,10 +308,10 @@ function PortfolioAnalytics({
 
           <div className="flex items-center gap-3">
             {/* View Tabs Selector */}
-            <div className="bg-slate-950/50 p-1.5 rounded-2xl border border-white/10 flex items-center gap-1 active:scale-98 transition">
+            <div className="bg-slate-950/50 p-1.5 rounded-2xl border border-white/10 flex items-center gap-1 active:scale-98 transition flex-wrap">
               <button
                 onClick={() => setPortfolioViewTab("analytics")}
-                className={`text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-xl cursor-pointer transition-all ${
+                className={`text-[11px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl cursor-pointer transition-all ${
                   portfolioViewTab === "analytics"
                     ? "bg-white text-indigo-950 shadow-md font-extrabold border border-white"
                     : "text-slate-400 hover:text-white"
@@ -317,13 +321,33 @@ function PortfolioAnalytics({
               </button>
               <button
                 onClick={() => setPortfolioViewTab("projects")}
-                className={`text-[11px] font-black uppercase tracking-wider px-4 py-2 rounded-xl cursor-pointer transition-all ${
+                className={`text-[11px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl cursor-pointer transition-all ${
                   portfolioViewTab === "projects"
                     ? "bg-white text-indigo-950 shadow-md font-extrabold border border-white"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
                 Project Targets
+              </button>
+              <button
+                onClick={() => setPortfolioViewTab("operators")}
+                className={`text-[11px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl cursor-pointer transition-all ${
+                  portfolioViewTab === "operators"
+                    ? "bg-white text-indigo-950 shadow-md font-extrabold border border-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Operator Statistics
+              </button>
+              <button
+                onClick={() => setPortfolioViewTab("shifts")}
+                className={`text-[11px] font-black uppercase tracking-wider px-3.5 py-2 rounded-xl cursor-pointer transition-all ${
+                  portfolioViewTab === "shifts"
+                    ? "bg-white text-indigo-950 shadow-md font-extrabold border border-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                24H Shift Statistics
               </button>
             </div>
 
@@ -346,7 +370,7 @@ function PortfolioAnalytics({
         </div>
       </div>
 
-      {portfolioViewTab === "analytics" ? (
+      {portfolioViewTab === "analytics" && (
         <div className="space-y-6 animate-fade-in">
           
           {/* Project Focus Selector Bar */}
@@ -656,7 +680,9 @@ function PortfolioAnalytics({
           </div>
 
         </div>
-      ) : (
+      )}
+
+      {portfolioViewTab === "projects" && (
         <div className="space-y-6 animate-fade-in">
           {/* Active Projects view tab */}
           {projects.length === 0 ? (
@@ -1077,6 +1103,21 @@ function PortfolioAnalytics({
             </div>
           )}
         </div>
+      )}
+
+      {portfolioViewTab === "operators" && (
+        <OperatorStats
+          records={records}
+          currentUser={currentUser}
+          appUsers={appUsers}
+        />
+      )}
+
+      {portfolioViewTab === "shifts" && (
+        <ShiftStats
+          records={records}
+          currentUser={currentUser}
+        />
       )}
 
     </div>
