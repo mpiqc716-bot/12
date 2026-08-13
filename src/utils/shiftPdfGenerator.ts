@@ -147,19 +147,21 @@ export function generateShiftReportPDF(
     };
   }).filter(p => p.matchesFilterScope);
 
-  // Apply status and search filters
-  const filteredStats = pipeStatistics.filter(item => {
-    if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+  // Apply status and search filters (sorted by Pipe N° from low to high)
+  const filteredStats = pipeStatistics
+    .filter(item => {
+      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
 
-    if (searchQuery) {
-      const matchId = item.pipeId.toLowerCase().includes(searchQuery);
-      const matchWO = item.projectWorkOrder.toLowerCase().includes(searchQuery);
-      const matchType = item.pipeType.toLowerCase().includes(searchQuery);
-      return matchId || matchWO || matchType;
-    }
+      if (searchQuery) {
+        const matchId = item.pipeId.toLowerCase().includes(searchQuery);
+        const matchWO = item.projectWorkOrder.toLowerCase().includes(searchQuery);
+        const matchType = item.pipeType.toLowerCase().includes(searchQuery);
+        return matchId || matchWO || matchType;
+      }
 
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => (a.pipeId || "").localeCompare(b.pipeId || "", undefined, { numeric: true, sensitivity: "base" }));
 
   const totalCount = pipeStatistics.length;
   const nonConformCount = pipeStatistics.filter(p => p.status === "NON CONFORM").length;
