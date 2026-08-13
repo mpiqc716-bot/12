@@ -19,7 +19,8 @@ import {
   Award,
   Map,
   Palette,
-  Settings
+  Settings,
+  Presentation
 } from "lucide-react";
 import { 
   User, 
@@ -40,6 +41,7 @@ const AccountPanel = React.lazy(() => import("./components/AccountPanel"));
 const PortfolioAnalytics = React.lazy(() => import("./components/PortfolioAnalytics"));
 const TrackingPlane = React.lazy(() => import("./components/TrackingPlane"));
 const ProjectReferenceModule = React.lazy(() => import("./components/ProjectReferenceModule"));
+const PresentationModal = React.lazy(() => import("./components/PresentationModal"));
 
 const TabLoadingSkeleton = () => (
   <div className="w-full space-y-6 py-6 animate-pulse">
@@ -169,6 +171,9 @@ export default function App() {
     }
   };
   
+  // Presentation state
+  const [showPresentation, setShowPresentation] = useState(false);
+
   // Tracker forms workflow states
   const [activeStep, setActiveStep] = useState<number>(1);
   const [currentHeader, setCurrentHeader] = useState<PipeHeader | null>(null);
@@ -1144,6 +1149,17 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Presentation Mode Trigger */}
+            <button
+              type="button"
+              onClick={() => setShowPresentation(true)}
+              className="text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/40 px-2.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-md"
+              title="Open System Presentation & PowerPoint Export"
+            >
+              <Presentation className="w-3.5 h-3.5 text-indigo-200" />
+              <span className="hidden md:inline">Presentation</span>
+            </button>
+
             {/* Theme Selector Dropdown */}
             <div className="relative">
               <button
@@ -1367,6 +1383,7 @@ export default function App() {
               currentUser={currentUser}
               projects={projects}
               tolerances={tolerances}
+              appUsers={appUsers}
             />
           </div>
         )}
@@ -1480,6 +1497,14 @@ export default function App() {
 
         </div>
       </footer>
+
+      {/* System Presentation & PowerPoint Deck Modal */}
+      <React.Suspense fallback={null}>
+        <PresentationModal
+          isOpen={showPresentation}
+          onClose={() => setShowPresentation(false)}
+        />
+      </React.Suspense>
 
     </div>
   );
